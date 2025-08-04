@@ -1,8 +1,7 @@
-# DOM to Tailwind Converter
+# DOM to Tailwind Converter <img align="right" src="https://github.com/user-attachments/assets/a3d00d31-c421-4a39-8143-01efb96bcff1" width="250px"/>
+<p><small>A developer tool to instantly convert DOM elements into clean, Tailwind CSS-based HTML, right from your browser.</code></p>
 
-A developer tool to instantly convert DOM elements into clean, Tailwind CSS-based HTML, right from your browser.
 
----
 
 ## Features
 
@@ -12,7 +11,6 @@ A developer tool to instantly convert DOM elements into clean, Tailwind CSS-base
 -   **Attribute Cleanup**: Automatically removes cluttered, framework-specific attributes from the final markup.
 -   **One-Click Copy**: Generates and copies a beautified HTML structure to your clipboard, ready to be pasted directly into your project.
 
----
 
 ## How It Works
 
@@ -20,7 +18,6 @@ A developer tool to instantly convert DOM elements into clean, Tailwind CSS-base
 2.  **Select**: Hover over the webpage. Elements will be highlighted with a red border.
 3.  **Copy**: Click on any highlighted element. The generated Tailwind HTML is instantly copied to your clipboard, and the inspector deactivates.
 
----
 
 ## Installation
 
