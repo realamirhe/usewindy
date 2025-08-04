@@ -1,0 +1,10 @@
+.tailwind-inspector-highlight {
+  outline: 2px solid red !important;
+  outline-offset: 1px;
+  cursor: pointer;
+}
+
+.tailwind-inspector-copied {
+  outline: 2px solid #22c55e !important; /* Tailwind's green-500 */
+  outline-offset: 1px;
+}
