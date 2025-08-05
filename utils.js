@@ -97,33 +97,262 @@ function getRelevantStyles(element) {
   return cssText;
 }
 
+/* Extract pseudo-element styles for an element */
+function getPseudoElementStyles(element) {
+  let pseudoStyles = "";
+  const uniqueId = `windy-extracted-${Math.random().toString(36).substr(2, 9)}`;
+
+  // Add unique identifier to the element
+  element.setAttribute('data-windy-id', uniqueId);
+
+  try {
+    // Get ::before styles
+    const beforeStyles = window.getComputedStyle(element, '::before');
+    const beforeContent = beforeStyles.getPropertyValue('content');
+
+    console.log(`🎭 Checking ::before for element:`, element.tagName, 'content:', beforeContent);
+
+    if (beforeContent && beforeContent !== 'none' && beforeContent !== 'normal' && beforeContent !== '""') {
+      const beforeProps = [
+        'content', 'display', 'position', 'top', 'right', 'bottom', 'left',
+        'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
+        'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+        'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+        'border', 'border-width', 'border-style', 'border-color', 'border-radius',
+        'background', 'background-color', 'background-image', 'background-size',
+        'background-position', 'background-repeat', 'background-attachment',
+        'color', 'font', 'font-family', 'font-size', 'font-weight', 'font-style',
+        'line-height', 'text-align', 'text-decoration', 'text-transform',
+        'transform', 'transform-origin', 'opacity', 'z-index', 'box-shadow',
+        'text-shadow', 'overflow', 'visibility', 'cursor', 'pointer-events',
+        'flex', 'align-self', 'justify-self', 'order',
+        'clip-path', 'mask', 'filter', 'backdrop-filter',
+        'transition', 'animation'
+      ];
+
+      let beforeCss = "";
+      for (const prop of beforeProps) {
+        const value = beforeStyles.getPropertyValue(prop);
+        if (value && value !== 'initial' && value !== 'normal' && value !== 'auto' && value !== 'none' && value !== '' && value !== '0px') {
+          beforeCss += `${prop}: ${value}; `;
+        }
+      }
+
+      if (beforeCss) {
+        pseudoStyles += `[data-windy-id="${uniqueId}"]::before { ${beforeCss} }\n`;
+        console.log(`✅ Added ::before styles for ${element.tagName}:`, beforeCss);
+      }
+    }
+
+    // Get ::after styles
+    const afterStyles = window.getComputedStyle(element, '::after');
+    const afterContent = afterStyles.getPropertyValue('content');
+
+    console.log(`🎭 Checking ::after for element:`, element.tagName, 'content:', afterContent);
+
+    if (afterContent && afterContent !== 'none' && afterContent !== 'normal' && afterContent !== '""') {
+      const afterProps = [
+        'content', 'display', 'position', 'top', 'right', 'bottom', 'left',
+        'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
+        'margin', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+        'padding', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+        'border', 'border-width', 'border-style', 'border-color', 'border-radius',
+        'background', 'background-color', 'background-image', 'background-size',
+        'background-position', 'background-repeat', 'background-attachment',
+        'color', 'font', 'font-family', 'font-size', 'font-weight', 'font-style',
+        'line-height', 'text-align', 'text-decoration', 'text-transform',
+        'transform', 'transform-origin', 'opacity', 'z-index', 'box-shadow',
+        'text-shadow', 'overflow', 'visibility', 'cursor', 'pointer-events',
+        'flex', 'align-self', 'justify-self', 'order',
+        'clip-path', 'mask', 'filter', 'backdrop-filter',
+        'transition', 'animation'
+      ];
+
+      let afterCss = "";
+      for (const prop of afterProps) {
+        const value = afterStyles.getPropertyValue(prop);
+        if (value && value !== 'initial' && value !== 'normal' && value !== 'auto' && value !== 'none' && value !== '' && value !== '0px') {
+          afterCss += `${prop}: ${value}; `;
+        }
+      }
+
+      if (afterCss) {
+        pseudoStyles += `[data-windy-id="${uniqueId}"]::after { ${afterCss} }\n`;
+        console.log(`✅ Added ::after styles for ${element.tagName}:`, afterCss);
+      }
+    }
+  } catch (e) {
+    console.warn('Error extracting pseudo-element styles:', e);
+  }
+
+  return pseudoStyles;
+}
+
+/* Recursively collect pseudo-element styles for element and its children */
+function collectAllPseudoStyles(element) {
+  let allPseudoStyles = "";
+
+  // Get pseudo styles for current element
+  allPseudoStyles += getPseudoElementStyles(element);
+
+  // Recursively get pseudo styles for all children
+  const children = element.querySelectorAll('*');
+  for (const child of children) {
+    allPseudoStyles += getPseudoElementStyles(child);
+  }
+
+  // Also try to extract pseudo-element CSS from stylesheets
+  allPseudoStyles += extractPseudoElementFromStylesheets(element);
+
+  console.log('🎭 Total pseudo-element styles collected:', allPseudoStyles.length, 'characters');
+  if (allPseudoStyles) {
+    console.log('🎭 Pseudo-styles preview:', allPseudoStyles.substring(0, 200) + '...');
+  }
+
+  return allPseudoStyles;
+}
+
+/* Extract pseudo-element rules from stylesheets */
+function extractPseudoElementFromStylesheets(rootElement) {
+  let pseudoRules = "";
+
+  try {
+    // Get all elements in the subtree
+    const allElements = [rootElement, ...rootElement.querySelectorAll('*')];
+
+    // Create a set of selectors to look for
+    const selectorsToCheck = new Set();
+
+    for (const element of allElements) {
+      // Add class-based selectors
+      if (element.className) {
+        const classes = element.className.split(/\s+/);
+        for (const cls of classes) {
+          if (cls.trim()) {
+            selectorsToCheck.add(`.${cls.trim()}::before`);
+            selectorsToCheck.add(`.${cls.trim()}::after`);
+            selectorsToCheck.add(`.${cls.trim()}:before`);
+            selectorsToCheck.add(`.${cls.trim()}:after`);
+          }
+        }
+      }
+
+      // Add ID-based selectors
+      if (element.id) {
+        selectorsToCheck.add(`#${element.id}::before`);
+        selectorsToCheck.add(`#${element.id}::after`);
+        selectorsToCheck.add(`#${element.id}:before`);
+        selectorsToCheck.add(`#${element.id}:after`);
+      }
+
+      // Add tag-based selectors
+      const tagName = element.tagName.toLowerCase();
+      selectorsToCheck.add(`${tagName}::before`);
+      selectorsToCheck.add(`${tagName}::after`);
+      selectorsToCheck.add(`${tagName}:before`);
+      selectorsToCheck.add(`${tagName}:after`);
+    }
+
+    // Check all stylesheets
+    for (const sheet of document.styleSheets) {
+      try {
+        const rules = sheet.cssRules || sheet.rules;
+        for (const rule of rules) {
+          if (rule.type === CSSRule.STYLE_RULE) {
+            const selectorText = rule.selectorText.toLowerCase();
+
+            // Check if this rule contains pseudo-elements
+            if (selectorText.includes('::before') || selectorText.includes('::after') ||
+              selectorText.includes(':before') || selectorText.includes(':after')) {
+
+              // Check if any of our elements might match this selector
+              for (const selector of selectorsToCheck) {
+                if (selectorText.includes(selector.toLowerCase()) ||
+                  matchesElementContext(selectorText, allElements)) {
+                  pseudoRules += `${rule.cssText}\n`;
+                  console.log('📋 Found stylesheet pseudo-rule:', rule.cssText);
+                  break;
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Could not access stylesheet rules:', e);
+      }
+    }
+  } catch (e) {
+    console.warn('Error extracting pseudo-element rules from stylesheets:', e);
+  }
+
+  return pseudoRules;
+}
+
+/* Helper function to check if a CSS selector might match our elements */
+function matchesElementContext(selectorText, elements) {
+  // Simple heuristic to check if selector might apply to our elements
+  for (const element of elements) {
+    try {
+      // Check if element matches the selector (without pseudo-elements)
+      const baseSelector = selectorText.replace(/::(before|after)|:(before|after)/g, '');
+      if (element.matches && element.matches(baseSelector)) {
+        return true;
+      }
+    } catch (e) {
+      // Invalid selector, continue
+    }
+  }
+  return false;
+}
+
 /* Collect CSS custom properties (variables) from the document */
 function collectCSSVariables() {
-  const variables = new Map();
+  const cssVars = new Map();
 
-  // Get variables from :root
-  const rootStyles = getComputedStyle(document.documentElement);
-  for (let i = 0; i < rootStyles.length; i++) {
-    const prop = rootStyles[i];
-    if (prop.startsWith("--")) {
-      variables.set(prop, rootStyles.getPropertyValue(prop));
+  // Get computed styles from root element
+  const rootStyle = window.getComputedStyle(document.documentElement);
+
+  // Iterate through all CSS properties
+  for (let i = 0; i < rootStyle.length; i++) {
+    const prop = rootStyle[i];
+    if (prop.startsWith('--')) {
+      const value = rootStyle.getPropertyValue(prop).trim();
+      if (value) {
+        cssVars.set(prop, value);
+      }
     }
   }
 
-  // Get variables from body
-  const bodyStyles = getComputedStyle(document.body);
-  for (let i = 0; i < bodyStyles.length; i++) {
-    const prop = bodyStyles[i];
-    if (prop.startsWith("--")) {
-      variables.set(prop, bodyStyles.getPropertyValue(prop));
+  // Also check for CSS variables in stylesheets
+  try {
+    for (const sheet of document.styleSheets) {
+      try {
+        for (const rule of sheet.cssRules || sheet.rules || []) {
+          if (rule.style) {
+            for (let i = 0; i < rule.style.length; i++) {
+              const prop = rule.style[i];
+              if (prop.startsWith('--')) {
+                const value = rule.style.getPropertyValue(prop).trim();
+                if (value && !cssVars.has(prop)) {
+                  cssVars.set(prop, value);
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Cross-origin stylesheets might not be accessible
+        console.warn('Could not access stylesheet:', e);
+      }
     }
+  } catch (e) {
+    console.warn('Error collecting CSS variables:', e);
   }
 
-  return variables;
+  return cssVars;
 }
 
 /* Detect if element has dark theme */
-// Enhanced function to detect if an element uses dark theme
 function detectDarkTheme(element) {
   const computedStyle = window.getComputedStyle(element);
   const bgcolor = computedStyle.backgroundColor;
@@ -180,55 +409,8 @@ function detectDarkTheme(element) {
   return false;
 }
 
-// Function to collect CSS variables from the document
-function collectCSSVariables() {
-  const cssVars = new Map();
-
-  // Get computed styles from root element
-  const rootStyle = window.getComputedStyle(document.documentElement);
-
-  // Iterate through all CSS properties
-  for (let i = 0; i < rootStyle.length; i++) {
-    const prop = rootStyle[i];
-    if (prop.startsWith('--')) {
-      const value = rootStyle.getPropertyValue(prop).trim();
-      if (value) {
-        cssVars.set(prop, value);
-      }
-    }
-  }
-
-  // Also check for CSS variables in stylesheets
-  try {
-    for (const sheet of document.styleSheets) {
-      try {
-        for (const rule of sheet.cssRules || sheet.rules || []) {
-          if (rule.style) {
-            for (let i = 0; i < rule.style.length; i++) {
-              const prop = rule.style[i];
-              if (prop.startsWith('--')) {
-                const value = rule.style.getPropertyValue(prop).trim();
-                if (value && !cssVars.has(prop)) {
-                  cssVars.set(prop, value);
-                }
-              }
-            }
-          }
-        }
-      } catch (e) {
-        // Cross-origin stylesheets might not be accessible
-        console.warn('Could not access stylesheet:', e);
-      }
-    }
-  } catch (e) {
-    console.warn('Error collecting CSS variables:', e);
-  }
-
-  return cssVars;
-}
-
 /* Clone element with styles and embedded assets for download */
-async function cloneWithStylesAndAssets(node, visited = new WeakSet(), assetMap = new Map()) {
+async function cloneWithStylesAndAssets(node, visited = new WeakSet(), assetMap = new Map(), pseudoStylesMap = new Map()) {
   if (node.nodeType === Node.TEXT_NODE) {
     return document.createTextNode(node.textContent);
   }
@@ -253,6 +435,18 @@ async function cloneWithStylesAndAssets(node, visited = new WeakSet(), assetMap 
     clone.style.cssText = relevantStyles;
   }
 
+  // Collect pseudo-element styles if not already collected
+  const pseudoStyles = getPseudoElementStyles(node);
+  if (pseudoStyles && !pseudoStylesMap.has(node)) {
+    pseudoStylesMap.set(node, pseudoStyles);
+  }
+
+  // Copy the data-windy-id if it was added during pseudo-element extraction
+  const windyId = node.getAttribute('data-windy-id');
+  if (windyId) {
+    clone.setAttribute('data-windy-id', windyId);
+  }
+
   // Handle images
   if (node.tagName === "IMG" && node.src) {
     if (!assetMap.has(node.src)) {
@@ -269,7 +463,7 @@ async function cloneWithStylesAndAssets(node, visited = new WeakSet(), assetMap 
 
       // Clone shadow DOM children
       for (const child of node.shadowRoot.childNodes) {
-        const clonedChild = await cloneWithStylesAndAssets(child, visited, assetMap);
+        const clonedChild = await cloneWithStylesAndAssets(child, visited, assetMap, pseudoStylesMap);
         if (clonedChild) {
           shadowClone.appendChild(clonedChild);
         }
@@ -281,7 +475,7 @@ async function cloneWithStylesAndAssets(node, visited = new WeakSet(), assetMap 
 
   // Clone light DOM children
   for (const child of node.childNodes) {
-    const clonedChild = await cloneWithStylesAndAssets(child, visited, assetMap);
+    const clonedChild = await cloneWithStylesAndAssets(child, visited, assetMap, pseudoStylesMap);
     if (clonedChild) {
       clone.appendChild(clonedChild);
     }

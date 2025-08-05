@@ -107,9 +107,10 @@ async function handleElementClick(e) {
 async function extractAndDownload(element) {
   const visited = new WeakSet();
   const assetMap = new Map();
+  const pseudoStylesMap = new Map();
 
   // Clone element with inline styles and embedded assets
-  const clonedElement = await cloneWithStylesAndAssets(element, visited, assetMap);
+  const clonedElement = await cloneWithStylesAndAssets(element, visited, assetMap, pseudoStylesMap);
 
   // Detect if the element has dark theme
   const isDark = detectDarkTheme(element);
@@ -124,6 +125,9 @@ async function extractAndDownload(element) {
     }
     variablesCSS += "}\n";
   }
+
+  // Collect all pseudo-element styles
+  const allPseudoStyles = collectAllPseudoStyles(element);
 
   // Create complete HTML document with adaptive styling
   const html = `<!DOCTYPE html>
@@ -199,6 +203,9 @@ async function extractAndDownload(element) {
     .extracted-content > * {
       /* Preserve the original element's styling completely */
     }
+
+    /* Pseudo-element styles */
+    ${allPseudoStyles}
   </style>
 </head>
 <body>
@@ -223,6 +230,7 @@ async function extractAndDownload(element) {
   console.log("✅ Element extracted and downloaded as windy-extracted-element.html");
   console.log("📊 File size:", Math.round(blob.size / 1024), "KB");
   console.log("🎨 Theme detected:", isDark ? "Dark" : "Light");
+  console.log("🎭 Pseudo-elements:", allPseudoStyles ? "Included" : "None found");
 }
 
 function showSuccessFeedback(element) {

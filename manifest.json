@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Windy - HTML/CSS Extractor",
-  "version": "1.1",
+  "version": "1.3",
   "description": "Click on any element to extract it as a beautiful HTML file with inline CSS.",
   "permissions": [
     "storage",
