@@ -1,10 +1,17 @@
-.tailwind-inspector-highlight {
-  outline: 2px solid red !important;
-  outline-offset: 1px;
+.windy-highlight {
+  outline: 2px solid #3b82f6 !important; /* blue-500 */
+  outline-offset: 2px;
   cursor: pointer;
 }
 
-.tailwind-inspector-copied {
-  outline: 2px solid #22c55e !important; /* Tailwind's green-500 */
-  outline-offset: 1px;
+.windy-success {
+  outline: 2px solid #22c55e !important; /* green-500 */
+  outline-offset: 2px;
+  background: rgba(34, 197, 94, 0.1) !important;
+}
+
+.windy-error {
+  outline: 2px solid #ef4444 !important; /* red-500 */
+  outline-offset: 2px;
+  background: rgba(239, 68, 68, 0.1) !important;
 }

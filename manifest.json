@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "windy",
+  "name": "Windy - HTML/CSS Extractor",
   "version": "1.0",
-  "description": "Hover to select an element, then click to copy its structure with Tailwind CSS classes.",
+  "description": "Click on any element to extract it as a beautiful HTML file with inline CSS.",
   "permissions": [
     "storage",
     "activeTab"
@@ -25,7 +25,7 @@
     }
   ],
   "action": {
-    "default_title": "Toggle Tailwind Inspector"
+    "default_title": "Toggle Element Extractor"
   },
   "icons": {
     "16": "icons/icon16.png",

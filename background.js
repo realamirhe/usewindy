@@ -19,6 +19,8 @@ chrome.action.onClicked.addListener(async (tab) => {
 chrome.runtime.onMessage.addListener(async (request, sender) => {
   if (request.action === "DEACTIVATE_INSPECTOR") {
     await chrome.storage.local.set({ extensionIsActive: false });
-    await chrome.action.setBadgeText({ tabId: sender.tab.id, text: '' });
+    if (sender.tab?.id) {
+      await chrome.action.setBadgeText({ tabId: sender.tab.id, text: '' });
+    }
   }
 });
