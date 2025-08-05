@@ -111,7 +111,21 @@ async function extractAndDownload(element) {
   // Clone element with inline styles and embedded assets
   const clonedElement = await cloneWithStylesAndAssets(element, visited, assetMap);
 
-  // Create complete HTML document with centered content
+  // Detect if the element has dark theme
+  const isDark = detectDarkTheme(element);
+
+  // Collect CSS variables
+  const cssVariables = collectCSSVariables();
+  let variablesCSS = "";
+  if (cssVariables.size > 0) {
+    variablesCSS = ":root {\n";
+    for (const [prop, value] of cssVariables) {
+      variablesCSS += `  ${prop}: ${value};\n`;
+    }
+    variablesCSS += "}\n";
+  }
+
+  // Create complete HTML document with adaptive styling
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -119,14 +133,20 @@ async function extractAndDownload(element) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Extracted Element</title>
   <style>
+    ${variablesCSS}
     * {
       box-sizing: border-box;
+    }
+    html, body {
       margin: 0;
       padding: 0;
+      font-family: system-ui, -apple-system, sans-serif;
     }
     body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: ${isDark ?
+      'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' :
+      'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+      };
       min-height: 100vh;
       display: flex;
       justify-content: center;
@@ -134,14 +154,16 @@ async function extractAndDownload(element) {
       padding: 20px;
     }
     .extracted-content {
-      background: white;
+      background: ${isDark ? 'rgba(45, 45, 65, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
       border-radius: 16px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, ${isDark ? '0.3' : '0.1'});
       padding: 32px;
       max-width: 90vw;
       max-height: 90vh;
       overflow: auto;
       position: relative;
+      backdrop-filter: blur(10px);
+      border: 1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
     }
     .extracted-content::before {
       content: '';
@@ -150,22 +172,32 @@ async function extractAndDownload(element) {
       left: -2px;
       right: -2px;
       bottom: -2px;
-      background: linear-gradient(45deg, #667eea, #764ba2, #667eea);
+      background: ${isDark ?
+      'linear-gradient(45deg, #1a1a2e, #16213e, #1a1a2e)' :
+      'linear-gradient(45deg, #667eea, #764ba2, #667eea)'
+      };
       border-radius: 18px;
       z-index: -1;
+      opacity: 0.7;
     }
     .watermark {
       position: fixed;
       bottom: 20px;
       right: 20px;
-      background: rgba(255, 255, 255, 0.9);
+      background: ${isDark ? 'rgba(45, 45, 65, 0.9)' : 'rgba(255, 255, 255, 0.9)'};
+      color: ${isDark ? '#e5e5e5' : '#666'};
       padding: 8px 12px;
       border-radius: 8px;
       font-size: 12px;
-      color: #666;
       font-weight: 500;
       backdrop-filter: blur(10px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      border: 1px solid ${isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'};
+    }
+
+    /* Ensure extracted content maintains its styling */
+    .extracted-content > * {
+      /* Preserve the original element's styling completely */
     }
   </style>
 </head>
@@ -190,6 +222,7 @@ async function extractAndDownload(element) {
 
   console.log("✅ Element extracted and downloaded as windy-extracted-element.html");
   console.log("📊 File size:", Math.round(blob.size / 1024), "KB");
+  console.log("🎨 Theme detected:", isDark ? "Dark" : "Light");
 }
 
 function showSuccessFeedback(element) {
