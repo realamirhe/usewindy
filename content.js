@@ -107,10 +107,14 @@ async function handleElementClick(e) {
 async function extractAndDownload(element) {
   const visited = new WeakSet();
   const assetMap = new Map();
-  const pseudoStylesMap = new Map();
+
+  // Collect all pseudo-element styles BEFORE cloning to avoid infinite loops
+  console.log("🎭 Collecting pseudo-element styles...");
+  const allPseudoStyles = collectAllPseudoStyles(element);
 
   // Clone element with inline styles and embedded assets
-  const clonedElement = await cloneWithStylesAndAssets(element, visited, assetMap, pseudoStylesMap);
+  console.log("🔄 Cloning element with styles...");
+  const clonedElement = await cloneWithStylesAndAssets(element, visited, assetMap);
 
   // Detect if the element has dark theme
   const isDark = detectDarkTheme(element);
@@ -125,9 +129,6 @@ async function extractAndDownload(element) {
     }
     variablesCSS += "}\n";
   }
-
-  // Collect all pseudo-element styles
-  const allPseudoStyles = collectAllPseudoStyles(element);
 
   // Create complete HTML document with adaptive styling
   const html = `<!DOCTYPE html>

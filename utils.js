@@ -1,16 +1,34 @@
 /* Convert URL to data URI */
 async function toDataURI(url) {
   if (url.startsWith("data:") || url.startsWith("blob:")) return url;
+
   try {
-    const res = await fetch(url);
+    // Add timeout and proper error handling
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+    const res = await fetch(url, {
+      signal: controller.signal,
+      mode: 'cors',
+      credentials: 'omit'
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+
     const blob = await res.blob();
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result);
+      reader.onerror = () => resolve(url); // Fallback to original URL
       reader.readAsDataURL(blob);
     });
   } catch (e) {
-    console.warn("Failed to fetch:", url, e);
+    // Silently fail and return original URL for broken/CORS-blocked images
+    console.warn("Could not convert to data URI, using original URL:", url);
     return url;
   }
 }
@@ -100,17 +118,21 @@ function getRelevantStyles(element) {
 /* Extract pseudo-element styles for an element */
 function getPseudoElementStyles(element) {
   let pseudoStyles = "";
+
+  // Skip if element is not a valid Element node
+  if (!element || !element.nodeType || element.nodeType !== Node.ELEMENT_NODE) {
+    return pseudoStyles;
+  }
+
   const uniqueId = `windy-extracted-${Math.random().toString(36).substr(2, 9)}`;
 
-  // Add unique identifier to the element
-  element.setAttribute('data-windy-id', uniqueId);
-
   try {
+    // Add unique identifier to the element
+    element.setAttribute('data-windy-id', uniqueId);
+
     // Get ::before styles
     const beforeStyles = window.getComputedStyle(element, '::before');
     const beforeContent = beforeStyles.getPropertyValue('content');
-
-    console.log(`🎭 Checking ::before for element:`, element.tagName, 'content:', beforeContent);
 
     if (beforeContent && beforeContent !== 'none' && beforeContent !== 'normal' && beforeContent !== '""') {
       const beforeProps = [
@@ -132,23 +154,24 @@ function getPseudoElementStyles(element) {
 
       let beforeCss = "";
       for (const prop of beforeProps) {
-        const value = beforeStyles.getPropertyValue(prop);
-        if (value && value !== 'initial' && value !== 'normal' && value !== 'auto' && value !== 'none' && value !== '' && value !== '0px') {
-          beforeCss += `${prop}: ${value}; `;
+        try {
+          const value = beforeStyles.getPropertyValue(prop);
+          if (value && value !== 'initial' && value !== 'normal' && value !== 'auto' && value !== 'none' && value !== '' && value !== '0px') {
+            beforeCss += `${prop}: ${value}; `;
+          }
+        } catch (e) {
+        // Skip invalid properties
         }
       }
 
       if (beforeCss) {
         pseudoStyles += `[data-windy-id="${uniqueId}"]::before { ${beforeCss} }\n`;
-        console.log(`✅ Added ::before styles for ${element.tagName}:`, beforeCss);
       }
     }
 
     // Get ::after styles
     const afterStyles = window.getComputedStyle(element, '::after');
     const afterContent = afterStyles.getPropertyValue('content');
-
-    console.log(`🎭 Checking ::after for element:`, element.tagName, 'content:', afterContent);
 
     if (afterContent && afterContent !== 'none' && afterContent !== 'normal' && afterContent !== '""') {
       const afterProps = [
@@ -170,15 +193,18 @@ function getPseudoElementStyles(element) {
 
       let afterCss = "";
       for (const prop of afterProps) {
-        const value = afterStyles.getPropertyValue(prop);
-        if (value && value !== 'initial' && value !== 'normal' && value !== 'auto' && value !== 'none' && value !== '' && value !== '0px') {
-          afterCss += `${prop}: ${value}; `;
+        try {
+          const value = afterStyles.getPropertyValue(prop);
+          if (value && value !== 'initial' && value !== 'normal' && value !== 'auto' && value !== 'none' && value !== '' && value !== '0px') {
+            afterCss += `${prop}: ${value}; `;
+          }
+        } catch (e) {
+        // Skip invalid properties
         }
       }
 
       if (afterCss) {
         pseudoStyles += `[data-windy-id="${uniqueId}"]::after { ${afterCss} }\n`;
-        console.log(`✅ Added ::after styles for ${element.tagName}:`, afterCss);
       }
     }
   } catch (e) {
@@ -192,117 +218,26 @@ function getPseudoElementStyles(element) {
 function collectAllPseudoStyles(element) {
   let allPseudoStyles = "";
 
-  // Get pseudo styles for current element
-  allPseudoStyles += getPseudoElementStyles(element);
-
-  // Recursively get pseudo styles for all children
-  const children = element.querySelectorAll('*');
-  for (const child of children) {
-    allPseudoStyles += getPseudoElementStyles(child);
-  }
-
-  // Also try to extract pseudo-element CSS from stylesheets
-  allPseudoStyles += extractPseudoElementFromStylesheets(element);
-
-  console.log('🎭 Total pseudo-element styles collected:', allPseudoStyles.length, 'characters');
-  if (allPseudoStyles) {
-    console.log('🎭 Pseudo-styles preview:', allPseudoStyles.substring(0, 200) + '...');
-  }
-
-  return allPseudoStyles;
-}
-
-/* Extract pseudo-element rules from stylesheets */
-function extractPseudoElementFromStylesheets(rootElement) {
-  let pseudoRules = "";
-
   try {
-    // Get all elements in the subtree
-    const allElements = [rootElement, ...rootElement.querySelectorAll('*')];
-
-    // Create a set of selectors to look for
-    const selectorsToCheck = new Set();
-
-    for (const element of allElements) {
-      // Add class-based selectors
-      if (element.className) {
-        const classes = element.className.split(/\s+/);
-        for (const cls of classes) {
-          if (cls.trim()) {
-            selectorsToCheck.add(`.${cls.trim()}::before`);
-            selectorsToCheck.add(`.${cls.trim()}::after`);
-            selectorsToCheck.add(`.${cls.trim()}:before`);
-            selectorsToCheck.add(`.${cls.trim()}:after`);
-          }
-        }
-      }
-
-      // Add ID-based selectors
-      if (element.id) {
-        selectorsToCheck.add(`#${element.id}::before`);
-        selectorsToCheck.add(`#${element.id}::after`);
-        selectorsToCheck.add(`#${element.id}:before`);
-        selectorsToCheck.add(`#${element.id}:after`);
-      }
-
-      // Add tag-based selectors
-      const tagName = element.tagName.toLowerCase();
-      selectorsToCheck.add(`${tagName}::before`);
-      selectorsToCheck.add(`${tagName}::after`);
-      selectorsToCheck.add(`${tagName}:before`);
-      selectorsToCheck.add(`${tagName}:after`);
+    // Get pseudo styles for current element
+    if (element && element.nodeType === Node.ELEMENT_NODE) {
+      allPseudoStyles += getPseudoElementStyles(element);
     }
 
-    // Check all stylesheets
-    for (const sheet of document.styleSheets) {
-      try {
-        const rules = sheet.cssRules || sheet.rules;
-        for (const rule of rules) {
-          if (rule.type === CSSRule.STYLE_RULE) {
-            const selectorText = rule.selectorText.toLowerCase();
-
-            // Check if this rule contains pseudo-elements
-            if (selectorText.includes('::before') || selectorText.includes('::after') ||
-              selectorText.includes(':before') || selectorText.includes(':after')) {
-
-              // Check if any of our elements might match this selector
-              for (const selector of selectorsToCheck) {
-                if (selectorText.includes(selector.toLowerCase()) ||
-                  matchesElementContext(selectorText, allElements)) {
-                  pseudoRules += `${rule.cssText}\n`;
-                  console.log('📋 Found stylesheet pseudo-rule:', rule.cssText);
-                  break;
-                }
-              }
-            }
-          }
+    // Recursively get pseudo styles for all children
+    if (element && element.querySelectorAll) {
+      const children = element.querySelectorAll('*');
+      for (const child of children) {
+        if (child && child.nodeType === Node.ELEMENT_NODE) {
+          allPseudoStyles += getPseudoElementStyles(child);
         }
-      } catch (e) {
-        console.warn('Could not access stylesheet rules:', e);
       }
     }
   } catch (e) {
-    console.warn('Error extracting pseudo-element rules from stylesheets:', e);
+    console.warn('Error collecting pseudo-element styles:', e);
   }
 
-  return pseudoRules;
-}
-
-/* Helper function to check if a CSS selector might match our elements */
-function matchesElementContext(selectorText, elements) {
-  // Simple heuristic to check if selector might apply to our elements
-  for (const element of elements) {
-    try {
-      // Check if element matches the selector (without pseudo-elements)
-      const baseSelector = selectorText.replace(/::(before|after)|:(before|after)/g, '');
-      if (element.matches && element.matches(baseSelector)) {
-        return true;
-      }
-    } catch (e) {
-      // Invalid selector, continue
-    }
-  }
-  return false;
+  return allPseudoStyles;
 }
 
 /* Collect CSS custom properties (variables) from the document */
@@ -321,32 +256,6 @@ function collectCSSVariables() {
         cssVars.set(prop, value);
       }
     }
-  }
-
-  // Also check for CSS variables in stylesheets
-  try {
-    for (const sheet of document.styleSheets) {
-      try {
-        for (const rule of sheet.cssRules || sheet.rules || []) {
-          if (rule.style) {
-            for (let i = 0; i < rule.style.length; i++) {
-              const prop = rule.style[i];
-              if (prop.startsWith('--')) {
-                const value = rule.style.getPropertyValue(prop).trim();
-                if (value && !cssVars.has(prop)) {
-                  cssVars.set(prop, value);
-                }
-              }
-            }
-          }
-        }
-      } catch (e) {
-        // Cross-origin stylesheets might not be accessible
-        console.warn('Could not access stylesheet:', e);
-      }
-    }
-  } catch (e) {
-    console.warn('Error collecting CSS variables:', e);
   }
 
   return cssVars;
@@ -400,17 +309,23 @@ function detectDarkTheme(element) {
     parent = parent.parentElement;
   }
 
-  // Check for dark theme indicators in classes
-  const classes = element.className.toLowerCase();
-  if (classes.includes('dark') || classes.includes('night') || classes.includes('black')) {
-    return true;
+  // Check for dark theme indicators in classes - safely handle className
+  try {
+    if (element.className && typeof element.className === 'string') {
+      const classes = element.className.toLowerCase();
+      if (classes.includes('dark') || classes.includes('night') || classes.includes('black')) {
+        return true;
+      }
+    }
+  } catch (e) {
+    // Ignore className errors
   }
 
   return false;
 }
 
 /* Clone element with styles and embedded assets for download */
-async function cloneWithStylesAndAssets(node, visited = new WeakSet(), assetMap = new Map(), pseudoStylesMap = new Map()) {
+async function cloneWithStylesAndAssets(node, visited = new WeakSet(), assetMap = new Map()) {
   if (node.nodeType === Node.TEXT_NODE) {
     return document.createTextNode(node.textContent);
   }
@@ -435,13 +350,7 @@ async function cloneWithStylesAndAssets(node, visited = new WeakSet(), assetMap 
     clone.style.cssText = relevantStyles;
   }
 
-  // Collect pseudo-element styles if not already collected
-  const pseudoStyles = getPseudoElementStyles(node);
-  if (pseudoStyles && !pseudoStylesMap.has(node)) {
-    pseudoStylesMap.set(node, pseudoStyles);
-  }
-
-  // Copy the data-windy-id if it was added during pseudo-element extraction
+  // Copy the data-windy-id if it exists (for pseudo-element targeting)
   const windyId = node.getAttribute('data-windy-id');
   if (windyId) {
     clone.setAttribute('data-windy-id', windyId);
@@ -463,7 +372,7 @@ async function cloneWithStylesAndAssets(node, visited = new WeakSet(), assetMap 
 
       // Clone shadow DOM children
       for (const child of node.shadowRoot.childNodes) {
-        const clonedChild = await cloneWithStylesAndAssets(child, visited, assetMap, pseudoStylesMap);
+        const clonedChild = await cloneWithStylesAndAssets(child, visited, assetMap);
         if (clonedChild) {
           shadowClone.appendChild(clonedChild);
         }
@@ -475,7 +384,7 @@ async function cloneWithStylesAndAssets(node, visited = new WeakSet(), assetMap 
 
   // Clone light DOM children
   for (const child of node.childNodes) {
-    const clonedChild = await cloneWithStylesAndAssets(child, visited, assetMap, pseudoStylesMap);
+    const clonedChild = await cloneWithStylesAndAssets(child, visited, assetMap);
     if (clonedChild) {
       clone.appendChild(clonedChild);
     }
